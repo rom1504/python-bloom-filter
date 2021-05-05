@@ -15,7 +15,7 @@
 
 from __future__ import division
 import os
-#mport sys
+import sys
 import math
 import array
 import random
@@ -32,7 +32,11 @@ else:
 #mport hashlib
 #mport numbers
 
-import python2x3
+if sys.version_info[0] == 2:
+    def intlist_to_binary(intlist):
+        return ''.join(chr(byte) for byte in intlist)
+else:
+    intlist_to_binary = bytes
 
 # In the literature:
 # k is the number of probes - we call this num_probes_k
@@ -91,7 +95,7 @@ if HAVE_MMAP:
                 flags |= getattr(os, 'O_BINARY')
             self.file_ = os.open(filename, flags)
             os.lseek(self.file_, self.num_chars + 1, os.SEEK_SET)
-            os.write(self.file_, python2x3.null_byte)
+            os.write(self.file_, b'\x00')
             self.mmap = mmap_mod.mmap(self.file_, self.num_chars)
 
         def is_set(self, bitno):
@@ -159,7 +163,7 @@ class File_seek_backend(object):
             flags |= getattr(os, 'O_BINARY')
         self.file_ = os.open(filename, flags)
         os.lseek(self.file_, self.num_chars + 1, os.SEEK_SET)
-        os.write(self.file_, python2x3.null_byte)
+        os.write(self.file_, b'\x00')
 
     def is_set(self, bitno):
         """Return true iff bit number bitno is set"""
@@ -191,7 +195,7 @@ class File_seek_backend(object):
         if was_char:
             os.write(self.file_, chr(byte))
         else:
-            char = python2x3.intlist_to_binary([byte])
+            char = intlist_to_binary([byte])
             os.write(self.file_, char)
 
     def clear(self, bitno):
@@ -212,7 +216,7 @@ class File_seek_backend(object):
         if was_char:
             os.write(chr(byte))
         else:
-            char = python2x3.intlist_to_binary([byte])
+            char = intlist_to_binary([byte])
             os.write(char)
 
     # These are quite slow ways to do iand and ior, but they should work,
@@ -272,7 +276,7 @@ class Array_then_file_seek_backend(object):
             flags |= getattr(os, 'O_BINARY')
         self.file_ = os.open(filename, flags)
         os.lseek(self.file_, num_chars + 1, os.SEEK_SET)
-        os.write(self.file_, python2x3.null_byte)
+        os.write(self.file_, b'\x00')
 
         os.lseek(self.file_, 0, os.SEEK_SET)
         offset = 0
