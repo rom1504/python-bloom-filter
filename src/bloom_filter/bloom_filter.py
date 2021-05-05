@@ -43,7 +43,7 @@ class Mmap_backend(object):
     Please note that this has only been tested on Linux so far.
     """
 
-    effs = 2 ^ 8 - 1
+    effs = 2 ** 8 - 1
 
     def __init__(self, num_bits, filename):
         if not HAVE_MMAP:
@@ -113,7 +113,7 @@ class Mmap_backend(object):
 class File_seek_backend(object):
     """Backend storage for our "array of bits" using a file in which we seek"""
 
-    effs = 2 ^ 8 - 1
+    effs = 2 ** 8 - 1
 
     def __init__(self, num_bits, filename):
         self.num_bits = num_bits
