@@ -8,99 +8,16 @@
 
 import dbm
 import math
+import os
 import random
 import sys
 import time
+import unittest
 
 import bloom_filter
 
 
 CHARACTERS = 'abcdefghijklmnopqrstuvwxyz1234567890'
-
-
-def _test(
-    description, values, trials, error_rate,
-    probe_bitnoer=None, filename=None,
-):
-    # pylint: disable=R0913,R0914
-    # R0913: We want a few arguments
-    # R0914: We want some local variables too.  This is just test code.
-    """Some quick automatic tests for the bloom filter class"""
-    if not probe_bitnoer:
-        probe_bitnoer = bloom_filter.get_filter_bitno_probes
-
-    all_good = True
-
-    divisor = 100000
-
-    bloom = bloom_filter.BloomFilter(
-        max_elements=values.length() * 2,
-        error_rate=error_rate,
-        probe_bitnoer=probe_bitnoer,
-        filename=filename,
-        start_fresh=True,
-    )
-
-    message = '\ndescription: %s num_bits_m: %s num_probes_k: %s\n'
-    filled_out_message = message % (
-        description,
-        bloom.num_bits_m,
-        bloom.num_probes_k,
-    )
-
-    sys.stdout.write(filled_out_message)
-
-    print('starting to add values to an empty bloom filter')
-    for valueno, value in enumerate(values.generator()):
-        reverse_valueno = values.length() - valueno
-        if reverse_valueno % divisor == 0:
-            print('adding valueno %d' % reverse_valueno)
-        bloom.add(value)
-
-    print('testing all known members')
-    include_in_count = sum(include in bloom for include in values.generator())
-    if include_in_count == values.length():
-        # Good
-        pass
-    else:
-        sys.stderr.write(
-            'Include count bad: %s, %d\n' % (
-                include_in_count,
-                values.length(),
-            ),
-        )
-        all_good = False
-
-    print('testing random non-members')
-    false_positives = 0
-    for trialno in range(trials):
-        if trialno % divisor == 0:
-            sys.stderr.write('trialno countdown: %d\n' % (trials - trialno))
-        while True:
-            candidate = ''.join(random.sample(CHARACTERS, 5))
-            # If we accidentally found a member, try again
-            if values.within(candidate):
-                continue
-            if candidate in bloom:
-                # print 'We erroneously think %s is in the filter' % candidate
-                false_positives += 1
-            break
-
-    actual_error_rate = float(false_positives) / trials
-
-    if actual_error_rate > error_rate:
-        sys.stderr.write(
-            '%s: Too many false positives: actual: %s, expected: %s\n' % (
-                sys.argv[0],
-                actual_error_rate,
-                error_rate,
-            ),
-        )
-        all_good = False
-
-    bloom.close()
-
-    return all_good
 
 
 class States(object):
@@ -197,77 +114,6 @@ class Evens(object):
         return int(math.ceil(self.maximum / 2.0))
 
 
-def and_test():
-    """Test the & operator"""
-
-    all_good = True
-
-    abc = bloom_filter.BloomFilter(max_elements=100, error_rate=0.01)
-    for character in ['a', 'b', 'c']:
-        abc += character
-
-    bcd = bloom_filter.BloomFilter(max_elements=100, error_rate=0.01)
-    for character in ['b', 'c', 'd']:
-        bcd += character
-
-    abc &= bcd
-
-    if 'a' in abc:
-        sys.stderr.write('a in abc&bcd, but should not be')
-        all_good = False
-    if 'b' not in abc:
-        sys.stderr.write('b not in abc&bcd, but should be')
-        all_good = False
-    if 'c' not in abc:
-        sys.stderr.write('c not in abc&bcd, but should be')
-        all_good = False
-    if 'd' in abc:
-        sys.stderr.write('d in abc&bcd, but should not be')
-        all_good = False
-
-    abc.close()
-    bcd.close()
-
-    return all_good
-
-
-def or_test():
-    """Test the | operator"""
-
-    all_good = True
-
-    abc = bloom_filter.BloomFilter(max_elements=100, error_rate=0.01)
-    for character in ['a', 'b', 'c']:
-        abc += character
-
-    bcd = bloom_filter.BloomFilter(max_elements=100, error_rate=0.01)
-    for character in ['b', 'c', 'd']:
-        bcd += character
-
-    abc |= bcd
-
-    if 'a' not in abc:
-        sys.stderr.write('a not in abc|bcd, but should be')
-        all_good = False
-    if 'b' not in abc:
-        sys.stderr.write('b not in abc|bcd, but should be')
-        all_good = False
-    if 'c' not in abc:
-        sys.stderr.write('c not in abc|bcd, but should be')
-        all_good = False
-    if 'd' not in abc:
-        sys.stderr.write('d not in abc|bcd, but should be')
-        all_good = False
-    if 'e' in abc:
-        sys.stderr.write('e in abc|bcd, but should not be')
-        all_good = False
-
-    abc.close()
-    bcd.close()
-
-    return all_good
-
-
 def give_description(filename):
     """
     Return a description of the filename type
@@ -285,38 +131,147 @@ def give_description(filename):
         return 'seek'
 
 
-def test_bloom_filter():
-    """Unit tests for BloomFilter class"""
+class TestBloomFilter(unittest.TestCase):
+    def _test(
+        self,
+        description, values, trials, error_rate,
+        probe_bitnoer=None, filename=None,
+    ):
+        # pylint: disable=R0913,R0914
+        # R0913: We want a few arguments
+        # R0914: We want some local variables too.  This is just test code.
+        """Some quick automatic tests for the bloom filter class"""
+        if not probe_bitnoer:
+            probe_bitnoer = bloom_filter.get_filter_bitno_probes
 
-    if sys.argv[1:] == ['--performance-test']:
-        performance_test = True
-    else:
-        performance_test = False
+        divisor = 100000
 
-    all_good = True
+        bloom = bloom_filter.BloomFilter(
+            max_elements=values.length() * 2,
+            error_rate=error_rate,
+            probe_bitnoer=probe_bitnoer,
+            filename=filename,
+            start_fresh=True,
+        )
 
-    all_good &= _test('states', States(), trials=100000, error_rate=0.01)
+        message = '\ndescription: %s num_bits_m: %s num_probes_k: %s\n'
+        filled_out_message = message % (
+            description,
+            bloom.num_bits_m,
+            bloom.num_probes_k,
+        )
 
-    all_good &= _test('random', Random_content(), trials=10000, error_rate=0.1)
-    all_good &= _test('random', Random_content(),
-                      trials=1000000, error_rate=1E-9)
-    all_good &= _test('random', Random_content(), trials=10000, error_rate=0.1,
-                      probe_bitnoer=bloom_filter.get_bitno_seed_rnd)
+        sys.stdout.write(filled_out_message)
 
-    filename = 'bloom-filter-rm-me'
-    all_good &= _test(
-        'random',
-        Random_content(),
-        trials=10000,
-        error_rate=0.1,
-        filename=filename,
-    )
+        print('starting to add values to an empty bloom filter')
+        for valueno, value in enumerate(values.generator()):
+            reverse_valueno = values.length() - valueno
+            if reverse_valueno % divisor == 0:
+                print('adding valueno %d' % reverse_valueno)
+            bloom.add(value)
 
-    all_good &= and_test()
+        print('testing all known members')
+        include_in_count = sum(
+            include in bloom
+            for include in values.generator()
+        )
+        self.assertEqual(include_in_count, values.length())
 
-    all_good &= or_test()
+        print('testing random non-members')
+        false_positives = 0
+        for trialno in range(trials):
+            if trialno % divisor == 0:
+                print(
+                    'trialno progress: %d / %d' % (trialno, trials),
+                    file=sys.stderr,
+                )
+            while True:
+                candidate = ''.join(random.sample(CHARACTERS, 5))
+                # If we accidentally found a member, try again
+                if values.within(candidate):
+                    continue
+                if candidate in bloom:
+                    # print('false positive: %s' % candidate)
+                    false_positives += 1
+                break
 
-    if performance_test:
+        actual_error_rate = float(false_positives) / trials
+
+        self.assertLess(
+            actual_error_rate, error_rate,
+            "Too many false positives: actual: %s, expected: %s" % (
+                actual_error_rate,
+                error_rate,
+            ),
+        )
+
+        bloom.close()
+
+    def test_and(self):
+        """Test the & operator"""
+
+        abc = bloom_filter.BloomFilter(max_elements=100, error_rate=0.01)
+        for character in ['a', 'b', 'c']:
+            abc += character
+
+        bcd = bloom_filter.BloomFilter(max_elements=100, error_rate=0.01)
+        for character in ['b', 'c', 'd']:
+            bcd += character
+
+        abc &= bcd
+
+        self.assertNotIn('a', abc)
+        self.assertIn('b', abc)
+        self.assertIn('c', abc)
+        self.assertNotIn('d', abc)
+
+        abc.close()
+        bcd.close()
+
+    def test_or(self):
+        """Test the | operator"""
+
+        abc = bloom_filter.BloomFilter(max_elements=100, error_rate=0.01)
+        for character in ['a', 'b', 'c']:
+            abc += character
+
+        bcd = bloom_filter.BloomFilter(max_elements=100, error_rate=0.01)
+        for character in ['b', 'c', 'd']:
+            bcd += character
+
+        abc |= bcd
+
+        self.assertIn('a', abc)
+        self.assertIn('b', abc)
+        self.assertIn('c', abc)
+        self.assertIn('d', abc)
+        self.assertNotIn('e', abc)
+
+        abc.close()
+        bcd.close()
+
+    def test_states(self):
+        self._test('states', States(), trials=100000, error_rate=0.01)
+
+    def test_random(self):
+        self._test('random', Random_content(), trials=10000, error_rate=0.1)
+        self._test('random', Random_content(), trials=1000000, error_rate=1E-9)
+        self._test('random', Random_content(), trials=10000, error_rate=0.1,
+                   probe_bitnoer=bloom_filter.get_bitno_seed_rnd)
+
+        filename = 'bloom-filter-rm-me'
+        self._test(
+            'random',
+            Random_content(),
+            trials=10000,
+            error_rate=0.1,
+            filename=filename,
+        )
+
+    @unittest.skipUnless(os.environ.get('TEST_PERF', ''), "disabled")
+    def test_performance(self):
+        """Unit tests for BloomFilter class"""
+
         sqrt_of_10 = math.sqrt(10)
         for exponent in range(19):  # it's a lot, but probably not unreasonable
             elements = int(sqrt_of_10 ** exponent + 0.5)
@@ -338,7 +293,7 @@ def test_bloom_filter():
                 if elements >= 1000000000 and description == 'array':
                     continue
                 time0 = time.time()
-                all_good &= _test(
+                self._test(
                     'evens %s elements: %d' % (
                         give_description(filename),
                         elements,
@@ -356,15 +311,13 @@ def test_bloom_filter():
                 with dbm.open('performance-numbers', 'c') as database:
                     database[key] = '%f' % delta_t
 
-    # test prob count ok
-    bloom = bloom_filter.BloomFilter(1000000, error_rate=.99)
-    all_good &= bloom.num_probes_k == 1
-    if not all_good:
-        sys.stderr.write('%s: One or more tests failed\n' % sys.argv[0])
-        sys.exit(1)
+    def test_probe_count(self):
+        # test prob count ok
+        bloom = bloom_filter.BloomFilter(1000000, error_rate=.99)
+        self.assertEqual(bloom.num_probes_k, 1)
 
-    bloom.close()
+        bloom.close()
 
 
 if __name__ == '__main__':
-    test_bloom_filter()
+    unittest.main()
