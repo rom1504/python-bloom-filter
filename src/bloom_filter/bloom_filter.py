@@ -197,10 +197,10 @@ class File_seek_backend(object):
         byte &= File_seek_backend.effs - mask
         os.lseek(self.file_, byteno, os.SEEK_SET)
         if was_char:
-            os.write(chr(byte))
+            os.write(self.file_, chr(byte))
         else:
             char = intlist_to_binary([byte])
-            os.write(char)
+            os.write(self._file, char)
 
     # These are quite slow ways to do iand and ior, but they should work,
     # and a faster version is going to take more time
@@ -366,8 +366,7 @@ class Array_then_file_seek_backend(object):
         """
 
         os.lseek(self.file_, 0, os.SEEK_SET)
-        for index in my_range(self.bytes_in_memory):
-            self.file_.write(self.array_[index])
+        os.write(self.file_, intlist_to_binary(self.array_[0:self.bytes_in_memory]))
 
         os.close(self.file_)
 
