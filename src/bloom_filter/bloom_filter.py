@@ -27,7 +27,6 @@ import array
 import math
 import os
 import random
-import sys
 
 try:
     import mmap as mmap_mod
@@ -36,22 +35,6 @@ except ImportError:
     HAVE_MMAP = False
 else:
     HAVE_MMAP = True
-
-
-if sys.version_info[0] == 2:
-    def intlist_to_binary(intlist):
-        return ''.join(chr(byte) for byte in intlist)
-else:
-    intlist_to_binary = bytes
-
-
-def my_range(num_values):
-    """Generate numbers from 0..num_values-1"""
-
-    value = 0
-    while value < num_values:
-        yield value
-        value += 1
 
 
 if HAVE_MMAP:
@@ -79,11 +62,7 @@ if HAVE_MMAP:
             """Return true iff bit number bitno is set"""
             byteno, bit_within_wordno = divmod(bitno, 8)
             mask = 1 << bit_within_wordno
-            char = self.mmap[byteno]
-            if isinstance(char, str):
-                byte = ord(char)
-            else:
-                byte = int(char)
+            byte = self.mmap[byteno]
             return byte & mask
 
         def set(self, bitno):
@@ -91,28 +70,26 @@ if HAVE_MMAP:
 
             byteno, bit_within_byteno = divmod(bitno, 8)
             mask = 1 << bit_within_byteno
-            char = self.mmap[byteno]
-            byte = ord(char)
+            byte = self.mmap[byteno]
             byte |= mask
-            self.mmap[byteno] = chr(byte)
+            self.mmap[byteno] = byte
 
         def clear(self, bitno):
             """clear bit number bitno - set it to false"""
 
             byteno, bit_within_byteno = divmod(bitno, 8)
             mask = 1 << bit_within_byteno
-            char = self.mmap[byteno]
-            byte = ord(char)
+            byte = self.mmap[byteno]
             byte &= Mmap_backend.effs - mask
-            self.mmap[byteno] = chr(byte)
+            self.mmap[byteno] = byte
 
         def __iand__(self, other):
             assert self.num_bits == other.num_bits
 
-            for byteno in my_range(self.num_chars):
-                self.mmap[byteno] = chr(
-                    ord(self.mmap[byteno])
-                    & ord(other.mmap[byteno])
+            for byteno in range(self.num_chars):
+                self.mmap[byteno] = (
+                    self.mmap[byteno]
+                    & other.mmap[byteno]
                 )
 
             return self
@@ -120,10 +97,10 @@ if HAVE_MMAP:
         def __ior__(self, other):
             assert self.num_bits == other.num_bits
 
-            for byteno in my_range(self.num_chars):
-                self.mmap[byteno] = chr(
-                    ord(self.mmap[byteno])
-                    | ord(other.mmap[byteno])
+            for byteno in range(self.num_chars):
+                self.mmap[byteno] = (
+                    self.mmap[byteno]
+                    | other.mmap[byteno]
                 )
 
             return self
@@ -153,11 +130,7 @@ class File_seek_backend(object):
         byteno, bit_within_wordno = divmod(bitno, 8)
         mask = 1 << bit_within_wordno
         os.lseek(self.file_, byteno, os.SEEK_SET)
-        char = os.read(self.file_, 1)
-        if isinstance(char, str):
-            byte = ord(char)
-        else:
-            byte = char[0]
+        byte = os.read(self.file_, 1)[0]
         return byte & mask
 
     def set(self, bitno):
@@ -166,20 +139,10 @@ class File_seek_backend(object):
         byteno, bit_within_byteno = divmod(bitno, 8)
         mask = 1 << bit_within_byteno
         os.lseek(self.file_, byteno, os.SEEK_SET)
-        char = os.read(self.file_, 1)
-        if isinstance(char, str):
-            byte = ord(char)
-            was_char = True
-        else:
-            byte = char[0]
-            was_char = False
+        byte = os.read(self.file_, 1)[0]
         byte |= mask
         os.lseek(self.file_, byteno, os.SEEK_SET)
-        if was_char:
-            os.write(self.file_, chr(byte))
-        else:
-            char = intlist_to_binary([byte])
-            os.write(self.file_, char)
+        os.write(self.file_, bytes([byte]))
 
     def clear(self, bitno):
         """clear bit number bitno - set it to false"""
@@ -187,27 +150,17 @@ class File_seek_backend(object):
         byteno, bit_within_byteno = divmod(bitno, 8)
         mask = 1 << bit_within_byteno
         os.lseek(self.file_, byteno, os.SEEK_SET)
-        char = os.read(self.file_, 1)
-        if isinstance(char, str):
-            byte = ord(char)
-            was_char = True
-        else:
-            byte = int(char)
-            was_char = False
+        byte = os.read(self.file_, 1)[0]
         byte &= File_seek_backend.effs - mask
         os.lseek(self.file_, byteno, os.SEEK_SET)
-        if was_char:
-            os.write(self.file_, chr(byte))
-        else:
-            char = intlist_to_binary([byte])
-            os.write(self._file, char)
+        os.write(self.file_, bytes([byte]))
 
     # These are quite slow ways to do iand and ior, but they should work,
     # and a faster version is going to take more time
     def __iand__(self, other):
         assert self.num_bits == other.num_bits
 
-        for bitno in my_range(self.num_bits):
+        for bitno in range(self.num_bits):
             if self.is_set(bitno) and other.is_set(bitno):
                 self.set(bitno)
             else:
@@ -218,7 +171,7 @@ class File_seek_backend(object):
     def __ior__(self, other):
         assert self.num_bits == other.num_bits
 
-        for bitno in my_range(self.num_bits):
+        for bitno in range(self.num_bits):
             if self.is_set(bitno) or other.is_set(bitno):
                 self.set(bitno)
             else:
@@ -272,8 +225,8 @@ class Array_then_file_seek_backend(object):
                 block = os.read(self.file_, self.bytes_in_memory - offset)
             else:
                 break
-            for index_in_block, character in enumerate(block):
-                self.array_[offset + index_in_block] = ord(character)
+            for index_in_block, byte in enumerate(block):
+                self.array_[offset + index_in_block] = byte
             offset += intended_block_len
 
     def is_set(self, bitno):
@@ -284,11 +237,7 @@ class Array_then_file_seek_backend(object):
             return self.array_[byteno] & mask
         else:
             os.lseek(self.file_, byteno, os.SEEK_SET)
-            char = os.read(self.file_, 1)
-            if isinstance(char, str):
-                byte = ord(char)
-            else:
-                byte = int(char)
+            byte = os.read(self.file_, 1)[0]
             return byte & mask
 
     def set(self, bitno):
@@ -299,19 +248,10 @@ class Array_then_file_seek_backend(object):
             self.array_[byteno] |= mask
         else:
             os.lseek(self.file_, byteno, os.SEEK_SET)
-            char = os.read(self.file_, 1)
-            if isinstance(char, str):
-                byte = ord(char)
-                was_char = True
-            else:
-                byte = char
-                was_char = False
+            byte = os.read(self.file_, 1)[0]
             byte |= mask
             os.lseek(self.file_, byteno, os.SEEK_SET)
-            if was_char:
-                os.write(self.file_, chr(byte))
-            else:
-                os.write(self.file_, byte)
+            os.write(self.file_, bytes([byte]))
 
     def clear(self, bitno):
         """clear bit number bitno - set it to false"""
@@ -321,26 +261,17 @@ class Array_then_file_seek_backend(object):
             self.array_[byteno] &= mask
         else:
             os.lseek(self.file_, byteno, os.SEEK_SET)
-            char = os.read(self.file_, 1)
-            if isinstance(char, str):
-                byte = ord(char)
-                was_char = True
-            else:
-                byte = int(char)
-                was_char = False
+            byte = os.read(self.file_, 1)[0]
             byte &= File_seek_backend.effs - mask
             os.lseek(self.file_, byteno, os.SEEK_SET)
-            if was_char:
-                os.write(chr(byte))
-            else:
-                os.write(byte)
+            os.write(self.file_, bytes([byte]))
 
     # These are quite slow ways to do iand and ior, but they should work,
     # and a faster version is going to take more time
     def __iand__(self, other):
         assert self.num_bits == other.num_bits
 
-        for bitno in my_range(self.num_bits):
+        for bitno in range(self.num_bits):
             if self.is_set(bitno) and other.is_set(bitno):
                 self.set(bitno)
             else:
@@ -351,7 +282,7 @@ class Array_then_file_seek_backend(object):
     def __ior__(self, other):
         assert self.num_bits == other.num_bits
 
-        for bitno in my_range(self.num_bits):
+        for bitno in range(self.num_bits):
             if self.is_set(bitno) or other.is_set(bitno):
                 self.set(bitno)
             else:
@@ -366,7 +297,7 @@ class Array_then_file_seek_backend(object):
         """
 
         os.lseek(self.file_, 0, os.SEEK_SET)
-        os.write(self.file_, intlist_to_binary(self.array_[0:self.bytes_in_memory]))
+        os.write(self.file_, bytes(self.array_[0:self.bytes_in_memory]))
 
         os.close(self.file_)
 
@@ -409,7 +340,7 @@ class Array_backend(object):
     def __iand__(self, other):
         assert self.num_bits == other.num_bits
 
-        for wordno in my_range(self.num_words):
+        for wordno in range(self.num_words):
             self.array_[wordno] &= other.array_[wordno]
 
         return self
@@ -417,7 +348,7 @@ class Array_backend(object):
     def __ior__(self, other):
         assert self.num_bits == other.num_bits
 
-        for wordno in my_range(self.num_words):
+        for wordno in range(self.num_words):
             self.array_[wordno] |= other.array_[wordno]
 
         return self
@@ -472,8 +403,6 @@ def get_bitno_lin_comb(bloom_filter, key):
 
     # This one assumes key is either bytes or str (or other list of integers)
 
-    # I'd love to check for long too, but that doesn't exist in 3.2, and 2.5
-    # doesn't have the numbers.Integral base type
     if hasattr(key, '__divmod__'):
         int_list = []
         temp = key
