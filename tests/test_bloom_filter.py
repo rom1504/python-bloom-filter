@@ -32,7 +32,10 @@ def my_range(maximum):
         value += 1
 
 
-def _test(description, values, trials, error_rate, probe_bitnoer=None, filename=None):
+def _test(
+    description, values, trials, error_rate,
+    probe_bitnoer=None, filename=None,
+):
     # pylint: disable=R0913,R0914
     # R0913: We want a few arguments
     # R0914: We want some local variables too.  This is just test code.
@@ -74,7 +77,12 @@ def _test(description, values, trials, error_rate, probe_bitnoer=None, filename=
         # Good
         pass
     else:
-        sys.stderr.write('Include count bad: %s, %d\n' % (include_in_count, values.length()))
+        sys.stderr.write(
+            'Include count bad: %s, %d\n' % (
+                include_in_count,
+                values.length(),
+            ),
+        )
         all_good = False
 
     print('testing random non-members')
@@ -95,11 +103,13 @@ def _test(description, values, trials, error_rate, probe_bitnoer=None, filename=
     actual_error_rate = float(false_positives) / trials
 
     if actual_error_rate > error_rate:
-        sys.stderr.write('%s: Too many false positives: actual: %s, expected: %s\n' % (
-            sys.argv[0],
-            actual_error_rate,
-            error_rate,
-        ))
+        sys.stderr.write(
+            '%s: Too many false positives: actual: %s, expected: %s\n' % (
+                sys.argv[0],
+                actual_error_rate,
+                error_rate,
+            ),
+        )
         all_good = False
 
     return all_good
@@ -267,7 +277,11 @@ def or_test():
 
 
 def give_description(filename):
-    """Return a description of the filename type - could be array, file or hybrid"""
+    """
+    Return a description of the filename type
+
+    Could be array, file or hybrid.
+    """
     if filename is None:
         return 'array'
     elif isinstance(filename, tuple):
@@ -296,7 +310,13 @@ def test_bloom_filter():
                       probe_bitnoer=bloom_filter.get_bitno_seed_rnd)
 
     filename = 'bloom-filter-rm-me'
-    all_good &= _test('random', Random_content(), trials=10000, error_rate=0.1, filename=filename)
+    all_good &= _test(
+        'random',
+        Random_content(),
+        trials=10000,
+        error_rate=0.1,
+        filename=filename,
+    )
 
     all_good &= and_test()
 
@@ -304,10 +324,14 @@ def test_bloom_filter():
 
     if performance_test:
         sqrt_of_10 = math.sqrt(10)
-        for exponent in range(19):  # this is a lot, but probably not unreasonable
+        for exponent in range(19):  # it's a lot, but probably not unreasonable
             elements = int(sqrt_of_10 ** exponent + 0.5)
-            for filename in [None, 'bloom-filter-rm-me', ('bloom-filter-rm-me', 768 * 2 ** 20),
-                             ('bloom-filter-rm-me', -1)]:
+            for filename in [
+                None,
+                'bloom-filter-rm-me',
+                ('bloom-filter-rm-me', 768 * 2 ** 20),
+                ('bloom-filter-rm-me', -1),
+            ]:
                 description = give_description(filename)
                 key = '%s %s' % (description, elements)
                 database = anydbm.open('performance-numbers', 'c')
@@ -322,7 +346,10 @@ def test_bloom_filter():
                     continue
                 time0 = time.time()
                 all_good &= _test(
-                    'evens %s elements: %d' % (give_description(filename), elements),
+                    'evens %s elements: %d' % (
+                        give_description(filename),
+                        elements,
+                    ),
                     Evens(elements),
                     trials=elements,
                     error_rate=1e-2,

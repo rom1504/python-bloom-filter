@@ -4,8 +4,9 @@
 
 """Bloom Filter: Probabilistic set membership testing for large sets"""
 
-# Shamelessly borrowed (under MIT license) from http://code.activestate.com/recipes/577686-bloom-filter/
-# About Bloom Filters: http://en.wikipedia.org/wiki/Bloom_filter
+# Shamelessly borrowed (under MIT license) from
+# https://code.activestate.com/recipes/577686-bloom-filter/
+# About Bloom Filters: https://en.wikipedia.org/wiki/Bloom_filter
 
 # Tweaked by Daniel Richard Stromberg, mostly to:
 # 1) Give it a little nicer __init__ parameters.
@@ -13,12 +14,20 @@
 # 3) Give it a selection of backends.
 # 4) Make it pass pylint.
 
+# In the literature:
+# k is the number of probes - we call this num_probes_k
+# m is the number of bits in the filter - we call this num_bits_m
+# n is the ideal number of elements to eventually be stored in the filter - we
+# call this ideal_num_elements_n
+# p is the desired error rate when full - we call this error_rate_p
+
 from __future__ import division
-import os
-import sys
-import math
+
 import array
+import math
+import os
 import random
+import sys
 
 try:
     import mmap as mmap_mod
@@ -28,17 +37,12 @@ except ImportError:
 else:
     HAVE_MMAP = True
 
+
 if sys.version_info[0] == 2:
     def intlist_to_binary(intlist):
         return ''.join(chr(byte) for byte in intlist)
 else:
     intlist_to_binary = bytes
-
-# In the literature:
-# k is the number of probes - we call this num_probes_k
-# m is the number of bits in the filter - we call this num_bits_m
-# n is the ideal number of elements to eventually be stored in the filter - we call this ideal_num_elements_n
-# p is the desired error rate when full - we call this error_rate_p
 
 
 def my_range(num_values):
@@ -55,7 +59,7 @@ if HAVE_MMAP:
     class Mmap_backend(object):
         """
         Backend storage for our "array of bits" using an mmap'd file.
-        Please note that this has only been tested on Linux so far: 2    -11-01.
+        Please note that this has only been tested on Linux so far.
         """
 
         effs = 2 ^ 8 - 1
@@ -106,7 +110,10 @@ if HAVE_MMAP:
             assert self.num_bits == other.num_bits
 
             for byteno in my_range(self.num_chars):
-                self.mmap[byteno] = chr(ord(self.mmap[byteno]) & ord(other.mmap[byteno]))
+                self.mmap[byteno] = chr(
+                    ord(self.mmap[byteno])
+                    & ord(other.mmap[byteno])
+                )
 
             return self
 
@@ -114,7 +121,10 @@ if HAVE_MMAP:
             assert self.num_bits == other.num_bits
 
             for byteno in my_range(self.num_chars):
-                self.mmap[byteno] = chr(ord(self.mmap[byteno]) | ord(other.mmap[byteno]))
+                self.mmap[byteno] = chr(
+                    ord(self.mmap[byteno])
+                    | ord(other.mmap[byteno])
+                )
 
             return self
 
@@ -225,10 +235,11 @@ class Array_then_file_seek_backend(object):
     # pylint: disable=R0902
     # R0902: We kinda need a bunch of instance attributes
     """
-    Backend storage for our "array of bits" using a python array of integers up to some maximum number of bytes,
-    then spilling over to a file.  This is -not- a cache; we instead save the leftmost bits in RAM, and the
-    rightmost bits (if necessary) in a file.  On open, we read from the file to RAM.  On close, we write from RAM
-    to the file.
+    Backend storage for our "array of bits" using a python array of integers up
+    to some maximum number of bytes, then spilling over to a file.
+    This is -not- a cache; we instead save the leftmost bits in RAM, and the
+    rightmost bits (if necessary) in a file.  On open, we read from the file to
+    RAM.  On close, we write from RAM to the file.
     """
 
     effs = 2 ** 8 - 1
@@ -349,7 +360,10 @@ class Array_then_file_seek_backend(object):
         return self
 
     def close(self):
-        """Write the in-memory portion to disk, leave the already-on-disk portion unchanged"""
+        """
+        Write the in-memory portion to disk, leave the already-on-disk  portion
+        unchanged
+        """
 
         os.lseek(self.file_, 0, os.SEEK_SET)
         for index in my_range(self.bytes_in_memory):
@@ -359,9 +373,12 @@ class Array_then_file_seek_backend(object):
 
 
 class Array_backend(object):
-    """Backend storage for our "array of bits" using a python array of integers"""
+    """
+    Backend storage for our "array of bits" using a python array of integers
+    """
 
-    # Note that this has now been split out into a bits_mod for the benefit of other projects.
+    # Note that this has now been split out into a bits_mod for the benefit of
+    # other projects.
     effs = 2 ** 32 - 1
 
     def __init__(self, num_bits):
@@ -387,7 +404,8 @@ class Array_backend(object):
         mask = Array_backend.effs - (1 << bit_within_wordno)
         self.array_[wordno] &= mask
 
-    # It'd be nice to do __iand__ and __ior__ in a base class, but that'd be Much slower
+    # It'd be nice to do __iand__ and __ior__ in a base class, but
+    # that'd be Much slower
 
     def __iand__(self, other):
         assert self.num_bits == other.num_bits
@@ -411,7 +429,11 @@ class Array_backend(object):
 
 
 def get_bitno_seed_rnd(bloom_filter, key):
-    """Apply num_probes_k hash functions to key.  Generate the array index and bitmask corresponding to each result"""
+    """
+    Apply num_probes_k hash functions to key.
+
+    Generate the array index and bitmask corresponding to each result.
+    """
 
     # We're using key as a seed to a pseudorandom number generator
     hasher = random.Random(key).randrange
@@ -443,11 +465,16 @@ def hash2(int_list):
 
 
 def get_bitno_lin_comb(bloom_filter, key):
-    """Apply num_probes_k hash functions to key.  Generate the array index and bitmask corresponding to each result"""
+    """
+    Apply num_probes_k hash functions to key.
+
+    Generate the array index and bitmask corresponding to each result
+    """
 
     # This one assumes key is either bytes or str (or other list of integers)
 
-    # I'd love to check for long too, but that doesn't exist in 3.2, and 2.5 doesn't have the numbers.Integral base type
+    # I'd love to check for long too, but that doesn't exist in 3.2, and 2.5
+    # doesn't have the numbers.Integral base type
     if hasattr(key, '__divmod__'):
         int_list = []
         temp = key
@@ -465,7 +492,8 @@ def get_bitno_lin_comb(bloom_filter, key):
     hash_value1 = hash1(int_list)
     hash_value2 = hash2(int_list)
 
-    # We're using linear combinations of hash_value1 and hash_value2 to obtain num_probes_k hash functions
+    # We're using linear combinations of hash_value1 and hash_value2 to obtain
+    # num_probes_k hash functions
     for probeno in range(1, bloom_filter.num_probes_k + 1):
         bit_index = hash_value1 + probeno * hash_value2
         yield bit_index % bloom_filter.num_bits_m
@@ -496,11 +524,15 @@ class BloomFilter(object):
             raise ValueError('error_rate_p must be between 0 and 1 exclusive')
 
         self.error_rate_p = error_rate
-        # With fewer elements, we should do very well.  With more elements, our error rate "guarantee"
-        # drops rapidly.
+        # With fewer elements, we should do very well. With more elements, our
+        # error rate "guarantee" drops rapidly.
         self.ideal_num_elements_n = max_elements
 
-        numerator = -1 * self.ideal_num_elements_n * math.log(self.error_rate_p)
+        numerator = (
+            -1
+            * self.ideal_num_elements_n
+            * math.log(self.error_rate_p)
+        )
         denominator = math.log(2) ** 2
         real_num_bits_m = numerator / denominator
         self.num_bits_m = int(math.ceil(real_num_bits_m))
@@ -513,20 +545,31 @@ class BloomFilter(object):
             if filename[1] == -1:
                 self.backend = Mmap_backend(self.num_bits_m, filename[0])
             else:
-                self.backend = Array_then_file_seek_backend(self.num_bits_m, filename[0], filename[1])
+                self.backend = Array_then_file_seek_backend(
+                    self.num_bits_m,
+                    filename[0],
+                    filename[1],
+                )
         else:
             if start_fresh:
                 try_unlink(filename)
             self.backend = File_seek_backend(self.num_bits_m, filename)
 
         # AKA num_offsetters
-        # Verified against http://en.wikipedia.org/wiki/Bloom_filter#Probability_of_false_positives
-        real_num_probes_k = (self.num_bits_m / self.ideal_num_elements_n) * math.log(2)
+        # Verified against
+        # https://en.wikipedia.org/wiki/Bloom_filter#Probability_of_false_positives
+        real_num_probes_k = (
+            (self.num_bits_m / self.ideal_num_elements_n)
+            * math.log(2)
+        )
         self.num_probes_k = int(math.ceil(real_num_probes_k))
         self.probe_bitnoer = probe_bitnoer
 
     def __repr__(self):
-        return 'BloomFilter(ideal_num_elements_n=%d, error_rate_p=%f, num_bits_m=%d)' % (
+        return (
+            'BloomFilter(ideal_num_elements_n=%d, error_rate_p=%f, '
+            + 'num_bits_m=%d)'
+        ) % (
             self.ideal_num_elements_n,
             self.error_rate_p,
             self.num_bits_m,
@@ -542,7 +585,11 @@ class BloomFilter(object):
         return self
 
     def _match_template(self, bloom_filter):
-        """Compare a sort of signature for two bloom filters.  Used in preparation for binary operations"""
+        """
+        Compare a sort of signature for two bloom filters.
+
+        Used in preparation for binary operations
+        """
         return (self.num_bits_m == bloom_filter.num_bits_m
                 and self.num_probes_k == bloom_filter.num_probes_k
                 and self.probe_bitnoer == bloom_filter.probe_bitnoer)

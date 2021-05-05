@@ -33,4 +33,4 @@ jobs:
     - name: Install dependencies
       run: pip install flake8
     - name: Test
-      run: flake8 --ignore=W503,E501 src tests bin
+      run: flake8 --ignore=W503 src tests bin
