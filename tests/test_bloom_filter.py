@@ -6,30 +6,16 @@
 
 """Unit tests for bloom_filter_mod"""
 
-import sys
+import dbm
 import math
-import time
-
-try:
-    import anydbm
-except ImportError:
-    import dbm as anydbm
-
 import random
+import sys
+import time
 
 import bloom_filter
 
+
 CHARACTERS = 'abcdefghijklmnopqrstuvwxyz1234567890'
-
-
-def my_range(maximum):
-    """A range function with consistent semantics on 2.x and 3.x"""
-    value = 0
-    while True:
-        if value >= maximum:
-            break
-        yield value
-        value += 1
 
 
 def _test(
@@ -87,7 +73,7 @@ def _test(
 
     print('testing random non-members')
     false_positives = 0
-    for trialno in my_range(trials):
+    for trialno in range(trials):
         if trialno % divisor == 0:
             sys.stderr.write('trialno countdown: %d\n' % (trials - trialno))
         while True:
@@ -190,7 +176,7 @@ class Evens(object):
 
     def generator(self):
         """Generate all values"""
-        for value in my_range(self.maximum):
+        for value in range(self.maximum):
             if value % 2 == 0:
                 yield str(value)
 
@@ -342,7 +328,7 @@ def test_bloom_filter():
             ]:
                 description = give_description(filename)
                 key = '%s %s' % (description, elements)
-                with anydbm.open('performance-numbers', 'c') as database:
+                with dbm.open('performance-numbers', 'c') as database:
                     if key in database.keys():
                         continue
                 if elements >= 100000000 and description == 'seek':
@@ -367,7 +353,7 @@ def test_bloom_filter():
                 # file_ = open('%s.txt' % description, 'a')
                 # file_.write('%d %f\n' % (elements, delta_t))
                 # file_.close()
-                with anydbm.open('performance-numbers', 'c') as database:
+                with dbm.open('performance-numbers', 'c') as database:
                     database[key] = '%f' % delta_t
 
     # test prob count ok
