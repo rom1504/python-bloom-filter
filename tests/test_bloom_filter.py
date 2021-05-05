@@ -6,7 +6,6 @@
 
 """Unit tests for bloom_filter_mod"""
 
-# mport os
 import sys
 import math
 import time
@@ -140,8 +139,7 @@ class States(object):
 def random_string():
     """Generate a random, 10 character string - for testing purposes"""
     list_ = []
-    for chrno in range(10):
-        dummy = chrno
+    for _ in range(10):
         character = CHARACTERS[int(random.random() * len(CHARACTERS))]
         list_.append(character)
     return ''.join(list_)
@@ -220,10 +218,10 @@ def and_test():
     if 'a' in abc_and_bcd:
         sys.stderr.write('a in abc_and_bcd, but should not be')
         all_good = False
-    if not 'b' in abc_and_bcd:
+    if 'b' not in abc_and_bcd:
         sys.stderr.write('b not in abc_and_bcd, but should be')
         all_good = False
-    if not 'c' in abc_and_bcd:
+    if 'c' not in abc_and_bcd:
         sys.stderr.write('c not in abc_and_bcd, but should be')
         all_good = False
     if 'd' in abc_and_bcd:
@@ -249,16 +247,16 @@ def or_test():
     abc_and_bcd = abc
     abc_and_bcd |= bcd
 
-    if not 'a' in abc_and_bcd:
+    if 'a' not in abc_and_bcd:
         sys.stderr.write('a not in abc_and_bcd, but should be')
         all_good = False
-    if not 'b' in abc_and_bcd:
+    if 'b' not in abc_and_bcd:
         sys.stderr.write('b not in abc_and_bcd, but should be')
         all_good = False
-    if not 'c' in abc_and_bcd:
+    if 'c' not in abc_and_bcd:
         sys.stderr.write('c not in abc_and_bcd, but should be')
         all_good = False
-    if not 'd' in abc_and_bcd:
+    if 'd' not in abc_and_bcd:
         sys.stderr.write('d not in abc_and_bcd, but should be')
         all_good = False
     if 'e' in abc_and_bcd:
@@ -306,7 +304,6 @@ def test_bloom_filter():
 
     if performance_test:
         sqrt_of_10 = math.sqrt(10)
-        # for exponent in range(5): # this is a lot, but probably not unreasonable
         for exponent in range(19):  # this is a lot, but probably not unreasonable
             elements = int(sqrt_of_10 ** exponent + 0.5)
             for filename in [None, 'bloom-filter-rm-me', ('bloom-filter-rm-me', 768 * 2 ** 20),

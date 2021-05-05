@@ -28,10 +28,6 @@ except ImportError:
 else:
     HAVE_MMAP = True
 
-#mport bufsock
-#mport hashlib
-#mport numbers
-
 if sys.version_info[0] == 2:
     def intlist_to_binary(intlist):
         return ''.join(chr(byte) for byte in intlist)
@@ -52,29 +48,6 @@ def my_range(num_values):
     while value < num_values:
         yield value
         value += 1
-
-# In the abstract, this is what we want &= and |= to do, but especially for disk-based filters, this is extremely slow
-#class Backend_set_operations:
-#    """Provide &= and |= for backends"""
-#    # pylint: disable=W0232
-#    # W0232: We don't need an __init__ method; we're never instantiated directly
-#    def __iand__(self, other):
-#        assert self.num_bits == other.num_bits
-#
-#        for bitno in my_range(num_bits):
-#            if self.is_set(bitno) and other.is_set(bitno):
-#                self[bitno].set()
-#            else:
-#                self[bitno].clear()
-#
-#    def __ior__(self, other):
-#        assert self.num_bits == other.num_bits
-#
-#        for bitno in xrange(num_bits):
-#            if self[bitno] or other[bitno]:
-#                self[bitno].set()
-#            else:
-#                self[bitno].clear()
 
 
 if HAVE_MMAP:
