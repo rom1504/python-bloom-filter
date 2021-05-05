@@ -543,3 +543,19 @@ class BloomFilter(object):
             if not self.backend.is_set(bitno):
                 return False
         return True
+
+    def close(self):
+        self.backend.close()
+        self.backend = None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+        self.backend = None
+
+    def __del__(self):
+        if self.backend is not None:
+            self.backend.close()
+            self.backend = None

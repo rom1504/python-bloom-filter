@@ -112,6 +112,8 @@ def _test(
         )
         all_good = False
 
+    bloom.close()
+
     return all_good
 
 
@@ -222,21 +224,23 @@ def and_test():
     for character in ['b', 'c', 'd']:
         bcd += character
 
-    abc_and_bcd = abc
-    abc_and_bcd &= bcd
+    abc &= bcd
 
-    if 'a' in abc_and_bcd:
-        sys.stderr.write('a in abc_and_bcd, but should not be')
+    if 'a' in abc:
+        sys.stderr.write('a in abc&bcd, but should not be')
         all_good = False
-    if 'b' not in abc_and_bcd:
-        sys.stderr.write('b not in abc_and_bcd, but should be')
+    if 'b' not in abc:
+        sys.stderr.write('b not in abc&bcd, but should be')
         all_good = False
-    if 'c' not in abc_and_bcd:
-        sys.stderr.write('c not in abc_and_bcd, but should be')
+    if 'c' not in abc:
+        sys.stderr.write('c not in abc&bcd, but should be')
         all_good = False
-    if 'd' in abc_and_bcd:
-        sys.stderr.write('d in abc_and_bcd, but should not be')
+    if 'd' in abc:
+        sys.stderr.write('d in abc&bcd, but should not be')
         all_good = False
+
+    abc.close()
+    bcd.close()
 
     return all_good
 
@@ -254,24 +258,26 @@ def or_test():
     for character in ['b', 'c', 'd']:
         bcd += character
 
-    abc_and_bcd = abc
-    abc_and_bcd |= bcd
+    abc |= bcd
 
-    if 'a' not in abc_and_bcd:
-        sys.stderr.write('a not in abc_and_bcd, but should be')
+    if 'a' not in abc:
+        sys.stderr.write('a not in abc|bcd, but should be')
         all_good = False
-    if 'b' not in abc_and_bcd:
-        sys.stderr.write('b not in abc_and_bcd, but should be')
+    if 'b' not in abc:
+        sys.stderr.write('b not in abc|bcd, but should be')
         all_good = False
-    if 'c' not in abc_and_bcd:
-        sys.stderr.write('c not in abc_and_bcd, but should be')
+    if 'c' not in abc:
+        sys.stderr.write('c not in abc|bcd, but should be')
         all_good = False
-    if 'd' not in abc_and_bcd:
-        sys.stderr.write('d not in abc_and_bcd, but should be')
+    if 'd' not in abc:
+        sys.stderr.write('d not in abc|bcd, but should be')
         all_good = False
-    if 'e' in abc_and_bcd:
-        sys.stderr.write('e in abc_and_bcd, but should not be')
+    if 'e' in abc:
+        sys.stderr.write('e in abc|bcd, but should not be')
         all_good = False
+
+    abc.close()
+    bcd.close()
 
     return all_good
 
@@ -368,6 +374,8 @@ def test_bloom_filter():
     if not all_good:
         sys.stderr.write('%s: One or more tests failed\n' % sys.argv[0])
         sys.exit(1)
+
+    bloom.close()
 
 
 if __name__ == '__main__':
