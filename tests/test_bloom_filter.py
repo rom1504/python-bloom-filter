@@ -14,7 +14,7 @@ import sys
 import time
 import unittest
 
-import bloom_filter
+import bloom_filter2
 
 
 CHARACTERS = 'abcdefghijklmnopqrstuvwxyz1234567890'
@@ -142,11 +142,11 @@ class TestBloomFilter(unittest.TestCase):
         # R0914: We want some local variables too.  This is just test code.
         """Some quick automatic tests for the bloom filter class"""
         if not probe_bitnoer:
-            probe_bitnoer = bloom_filter.get_filter_bitno_probes
+            probe_bitnoer = bloom_filter2.get_filter_bitno_probes
 
         divisor = 100000
 
-        bloom = bloom_filter.BloomFilter(
+        bloom = bloom_filter2.BloomFilter(
             max_elements=values.length() * 2,
             error_rate=error_rate,
             probe_bitnoer=probe_bitnoer,
@@ -210,11 +210,11 @@ class TestBloomFilter(unittest.TestCase):
     def test_and(self):
         """Test the & operator"""
 
-        abc = bloom_filter.BloomFilter(max_elements=100, error_rate=0.01)
+        abc = bloom_filter2.BloomFilter(max_elements=100, error_rate=0.01)
         for character in ['a', 'b', 'c']:
             abc += character
 
-        bcd = bloom_filter.BloomFilter(max_elements=100, error_rate=0.01)
+        bcd = bloom_filter2.BloomFilter(max_elements=100, error_rate=0.01)
         for character in ['b', 'c', 'd']:
             bcd += character
 
@@ -231,11 +231,11 @@ class TestBloomFilter(unittest.TestCase):
     def test_or(self):
         """Test the | operator"""
 
-        abc = bloom_filter.BloomFilter(max_elements=100, error_rate=0.01)
+        abc = bloom_filter2.BloomFilter(max_elements=100, error_rate=0.01)
         for character in ['a', 'b', 'c']:
             abc += character
 
-        bcd = bloom_filter.BloomFilter(max_elements=100, error_rate=0.01)
+        bcd = bloom_filter2.BloomFilter(max_elements=100, error_rate=0.01)
         for character in ['b', 'c', 'd']:
             bcd += character
 
@@ -257,7 +257,7 @@ class TestBloomFilter(unittest.TestCase):
         self._test('random', Random_content(), trials=10000, error_rate=0.1)
         self._test('random', Random_content(), trials=1000000, error_rate=1E-9)
         self._test('random', Random_content(), trials=10000, error_rate=0.1,
-                   probe_bitnoer=bloom_filter.get_bitno_seed_rnd)
+                   probe_bitnoer=bloom_filter2.get_bitno_seed_rnd)
 
         filename = 'bloom-filter-rm-me'
         self._test(
@@ -313,7 +313,7 @@ class TestBloomFilter(unittest.TestCase):
 
     def test_probe_count(self):
         # test prob count ok
-        bloom = bloom_filter.BloomFilter(1000000, error_rate=.99)
+        bloom = bloom_filter2.BloomFilter(1000000, error_rate=.99)
         self.assertEqual(bloom.num_probes_k, 1)
 
         bloom.close()

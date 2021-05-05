@@ -19,7 +19,7 @@ calculates the rest.
 
 ::
 
-    from bloom_filter import BloomFilter
+    from bloom_filter2 import BloomFilter
 
     # instantiate BloomFilter with custom settings,
     # max_elements is how many elements you expect the filter to hold.

@@ -12,3 +12,8 @@ Forked to GitHub, renamed to `bloom_filter`:
 
  - https://github.com/hiway/python-bloom-filter
  - Author: Harshad Sharma
+
+Forked after it was found unmaintained for a way, renamed to `bloom_filter2`:
+
+ - https://github.com/remram44/python-bloom-filter
+ - Maintainer: Remi Rampin

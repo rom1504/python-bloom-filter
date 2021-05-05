@@ -7,6 +7,10 @@ from .bloom_filter import (
     get_bitno_seed_rnd,
 )
 
+
+__version__ = '2.0.0'
+
+
 __all__ = [
     'BloomFilter',
     'get_filter_bitno_probes',
