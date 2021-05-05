@@ -184,124 +184,6 @@ class File_seek_backend(object):
         os.close(self.file_)
 
 
-class Array_then_file_seek_backend(object):
-    # pylint: disable=R0902
-    # R0902: We kinda need a bunch of instance attributes
-    """
-    Backend storage for our "array of bits" using a python array of integers up
-    to some maximum number of bytes, then spilling over to a file.
-    This is -not- a cache; we instead save the leftmost bits in RAM, and the
-    rightmost bits (if necessary) in a file.  On open, we read from the file to
-    RAM.  On close, we write from RAM to the file.
-    """
-
-    effs = 2 ** 8 - 1
-
-    def __init__(self, num_bits, filename, max_bytes_in_memory):
-        self.num_bits = num_bits
-        num_chars = (self.num_bits + 7) // 8
-        self.filename = filename
-        self.max_bytes_in_memory = max_bytes_in_memory
-        self.bits_in_memory = min(num_bits, self.max_bytes_in_memory * 8)
-        self.bits_in_file = max(self.num_bits - self.bits_in_memory, 0)
-        self.bytes_in_memory = (self.bits_in_memory + 7) // 8
-        self.bytes_in_file = (self.bits_in_file + 7) // 8
-
-        self.array_ = array.array('B', [0]) * self.bytes_in_memory
-        flags = os.O_RDWR | os.O_CREAT
-        if hasattr(os, 'O_BINARY'):
-            flags |= getattr(os, 'O_BINARY')
-        self.file_ = os.open(filename, flags)
-        os.lseek(self.file_, num_chars + 1, os.SEEK_SET)
-        os.write(self.file_, b'\x00')
-
-        os.lseek(self.file_, 0, os.SEEK_SET)
-        offset = 0
-        intended_block_len = 2 ** 17
-        while True:
-            if offset + intended_block_len < self.bytes_in_memory:
-                block = os.read(self.file_, intended_block_len)
-            elif offset < self.bytes_in_memory:
-                block = os.read(self.file_, self.bytes_in_memory - offset)
-            else:
-                break
-            for index_in_block, byte in enumerate(block):
-                self.array_[offset + index_in_block] = byte
-            offset += intended_block_len
-
-    def is_set(self, bitno):
-        """Return true iff bit number bitno is set"""
-        byteno, bit_within_byteno = divmod(bitno, 8)
-        mask = 1 << bit_within_byteno
-        if byteno < self.bytes_in_memory:
-            return self.array_[byteno] & mask
-        else:
-            os.lseek(self.file_, byteno, os.SEEK_SET)
-            byte = os.read(self.file_, 1)[0]
-            return byte & mask
-
-    def set(self, bitno):
-        """set bit number bitno to true"""
-        byteno, bit_within_byteno = divmod(bitno, 8)
-        mask = 1 << bit_within_byteno
-        if byteno < self.bytes_in_memory:
-            self.array_[byteno] |= mask
-        else:
-            os.lseek(self.file_, byteno, os.SEEK_SET)
-            byte = os.read(self.file_, 1)[0]
-            byte |= mask
-            os.lseek(self.file_, byteno, os.SEEK_SET)
-            os.write(self.file_, bytes([byte]))
-
-    def clear(self, bitno):
-        """clear bit number bitno - set it to false"""
-        byteno, bit_within_byteno = divmod(bitno, 8)
-        mask = Array_backend.effs - (1 << bit_within_byteno)
-        if byteno < self.bytes_in_memory:
-            self.array_[byteno] &= mask
-        else:
-            os.lseek(self.file_, byteno, os.SEEK_SET)
-            byte = os.read(self.file_, 1)[0]
-            byte &= File_seek_backend.effs - mask
-            os.lseek(self.file_, byteno, os.SEEK_SET)
-            os.write(self.file_, bytes([byte]))
-
-    # These are quite slow ways to do iand and ior, but they should work,
-    # and a faster version is going to take more time
-    def __iand__(self, other):
-        assert self.num_bits == other.num_bits
-
-        for bitno in range(self.num_bits):
-            if self.is_set(bitno) and other.is_set(bitno):
-                self.set(bitno)
-            else:
-                self.clear(bitno)
-
-        return self
-
-    def __ior__(self, other):
-        assert self.num_bits == other.num_bits
-
-        for bitno in range(self.num_bits):
-            if self.is_set(bitno) or other.is_set(bitno):
-                self.set(bitno)
-            else:
-                self.clear(bitno)
-
-        return self
-
-    def close(self):
-        """
-        Write the in-memory portion to disk, leave the already-on-disk  portion
-        unchanged
-        """
-
-        os.lseek(self.file_, 0, os.SEEK_SET)
-        os.write(self.file_, bytes(self.array_[0:self.bytes_in_memory]))
-
-        os.close(self.file_)
-
-
 class Array_backend(object):
     """
     Backend storage for our "array of bits" using a python array of integers
@@ -443,6 +325,7 @@ class BloomFilter(object):
                  error_rate=0.1,
                  probe_bitnoer=get_bitno_lin_comb,
                  filename=None,
+                 mmap=False,
                  start_fresh=False):
         # pylint: disable=R0913
         # R0913: We want a few arguments
@@ -467,17 +350,19 @@ class BloomFilter(object):
 
         if filename is None:
             self.backend = Array_backend(self.num_bits_m)
-        elif isinstance(filename, tuple) and isinstance(filename[1], int):
+        elif isinstance(filename, (list, tuple)):
+            if filename[1] == -1:
+                if start_fresh:
+                    try_unlink(filename[0])
+                self.backend = Mmap_backend(self.num_bits_m, filename)
+            else:
+                raise NotImplementedError(
+                    "Array_then_file_seek_backend is not longer supported",
+                )
+        elif mmap:
             if start_fresh:
                 try_unlink(filename[0])
-            if filename[1] == -1:
-                self.backend = Mmap_backend(self.num_bits_m, filename[0])
-            else:
-                self.backend = Array_then_file_seek_backend(
-                    self.num_bits_m,
-                    filename[0],
-                    filename[1],
-                )
+            self.backend = Mmap_backend(self.num_bits_m, filename)
         else:
             if start_fresh:
                 try_unlink(filename)
