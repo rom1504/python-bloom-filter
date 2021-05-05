@@ -37,77 +37,77 @@ else:
     HAVE_MMAP = True
 
 
-if HAVE_MMAP:
+class Mmap_backend(object):
+    """
+    Backend storage for our "array of bits" using an mmap'd file.
+    Please note that this has only been tested on Linux so far.
+    """
 
-    class Mmap_backend(object):
-        """
-        Backend storage for our "array of bits" using an mmap'd file.
-        Please note that this has only been tested on Linux so far.
-        """
+    effs = 2 ^ 8 - 1
 
-        effs = 2 ^ 8 - 1
+    def __init__(self, num_bits, filename):
+        if not HAVE_MMAP:
+            raise NotImplementedError("mmap is not available")
+        self.num_bits = num_bits
+        self.num_chars = (self.num_bits + 7) // 8
+        flags = os.O_RDWR | os.O_CREAT
+        if hasattr(os, 'O_BINARY'):
+            flags |= getattr(os, 'O_BINARY')
+        self.file_ = os.open(filename, flags)
+        os.lseek(self.file_, self.num_chars + 1, os.SEEK_SET)
+        os.write(self.file_, b'\x00')
+        self.mmap = mmap_mod.mmap(self.file_, self.num_chars)
 
-        def __init__(self, num_bits, filename):
-            self.num_bits = num_bits
-            self.num_chars = (self.num_bits + 7) // 8
-            flags = os.O_RDWR | os.O_CREAT
-            if hasattr(os, 'O_BINARY'):
-                flags |= getattr(os, 'O_BINARY')
-            self.file_ = os.open(filename, flags)
-            os.lseek(self.file_, self.num_chars + 1, os.SEEK_SET)
-            os.write(self.file_, b'\x00')
-            self.mmap = mmap_mod.mmap(self.file_, self.num_chars)
+    def is_set(self, bitno):
+        """Return true iff bit number bitno is set"""
+        byteno, bit_within_wordno = divmod(bitno, 8)
+        mask = 1 << bit_within_wordno
+        byte = self.mmap[byteno]
+        return byte & mask
 
-        def is_set(self, bitno):
-            """Return true iff bit number bitno is set"""
-            byteno, bit_within_wordno = divmod(bitno, 8)
-            mask = 1 << bit_within_wordno
-            byte = self.mmap[byteno]
-            return byte & mask
+    def set(self, bitno):
+        """set bit number bitno to true"""
 
-        def set(self, bitno):
-            """set bit number bitno to true"""
+        byteno, bit_within_byteno = divmod(bitno, 8)
+        mask = 1 << bit_within_byteno
+        byte = self.mmap[byteno]
+        byte |= mask
+        self.mmap[byteno] = byte
 
-            byteno, bit_within_byteno = divmod(bitno, 8)
-            mask = 1 << bit_within_byteno
-            byte = self.mmap[byteno]
-            byte |= mask
-            self.mmap[byteno] = byte
+    def clear(self, bitno):
+        """clear bit number bitno - set it to false"""
 
-        def clear(self, bitno):
-            """clear bit number bitno - set it to false"""
+        byteno, bit_within_byteno = divmod(bitno, 8)
+        mask = 1 << bit_within_byteno
+        byte = self.mmap[byteno]
+        byte &= Mmap_backend.effs - mask
+        self.mmap[byteno] = byte
 
-            byteno, bit_within_byteno = divmod(bitno, 8)
-            mask = 1 << bit_within_byteno
-            byte = self.mmap[byteno]
-            byte &= Mmap_backend.effs - mask
-            self.mmap[byteno] = byte
+    def __iand__(self, other):
+        assert self.num_bits == other.num_bits
 
-        def __iand__(self, other):
-            assert self.num_bits == other.num_bits
+        for byteno in range(self.num_chars):
+            self.mmap[byteno] = (
+                self.mmap[byteno]
+                & other.mmap[byteno]
+            )
 
-            for byteno in range(self.num_chars):
-                self.mmap[byteno] = (
-                    self.mmap[byteno]
-                    & other.mmap[byteno]
-                )
+        return self
 
-            return self
+    def __ior__(self, other):
+        assert self.num_bits == other.num_bits
 
-        def __ior__(self, other):
-            assert self.num_bits == other.num_bits
+        for byteno in range(self.num_chars):
+            self.mmap[byteno] = (
+                self.mmap[byteno]
+                | other.mmap[byteno]
+            )
 
-            for byteno in range(self.num_chars):
-                self.mmap[byteno] = (
-                    self.mmap[byteno]
-                    | other.mmap[byteno]
-                )
+        return self
 
-            return self
-
-        def close(self):
-            """Close the file"""
-            os.close(self.file_)
+    def close(self):
+        """Close the file"""
+        os.close(self.file_)
 
 
 class File_seek_backend(object):
