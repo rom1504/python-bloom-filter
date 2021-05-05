@@ -410,6 +410,8 @@ def get_filter_bitno_probes(bloom_filter, key):
             quotient, remainder = divmod(temp, 256)
             int_list.append(remainder)
             temp = quotient
+    elif isinstance(key, (list, tuple, str, bytes)) and not key:
+        int_list = []
     elif hasattr(key[0], '__divmod__'):
         int_list = key
     elif isinstance(key[0], str):
