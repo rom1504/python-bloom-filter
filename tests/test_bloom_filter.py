@@ -334,10 +334,9 @@ def test_bloom_filter():
             ]:
                 description = give_description(filename)
                 key = '%s %s' % (description, elements)
-                database = anydbm.open('performance-numbers', 'c')
-                if key in database.keys():
-                    database.close()
-                    continue
+                with anydbm.open('performance-numbers', 'c') as database:
+                    if key in database.keys():
+                        continue
                 if elements >= 100000000 and description == 'seek':
                     continue
                 if elements >= 100000000 and description == 'mmap':
@@ -360,9 +359,8 @@ def test_bloom_filter():
                 # file_ = open('%s.txt' % description, 'a')
                 # file_.write('%d %f\n' % (elements, delta_t))
                 # file_.close()
-                database = anydbm.open('performance-numbers', 'c')
-                database[key] = '%f' % delta_t
-                database.close()
+                with anydbm.open('performance-numbers', 'c') as database:
+                    database[key] = '%f' % delta_t
 
     # test prob count ok
     bloom = bloom_filter.BloomFilter(1000000, error_rate=.99)
