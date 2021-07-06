@@ -17,7 +17,7 @@ The user specifies the desired maximum number of elements and the
 desired maximum false positive probability, and the module
 calculates the rest.
 
-::
+.. code-block:: python
 
     from bloom_filter2 import BloomFilter
 
@@ -36,3 +36,9 @@ calculates the rest.
 
     # Now check again
     assert "test-key" in bloom
+
+It is possible to save/load to files with the mmap implementation:
+
+.. code-block:: python
+
+    bloom = BloomFilter(max_elements=10**8, error_rate=0.01,filename=('/tmp/bloom.bin', -1))
